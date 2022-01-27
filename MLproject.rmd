@@ -1,0 +1,117 @@
+---
+title: "Predicting  Exercise Posture"
+author: "Jirapanakorn Sutham"
+date: "27/1/2565"
+output: html_document
+---
+
+   This article is a part of Practical Machine Learning course final project.
+The propose of this article is to build model to answer "what is preidict exercise posture ("classe" variable in dataset) ?" From many predictors provided in [traing dataset.](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)  
+And then use [testing dataset](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv) to test model performance and answer project quiz. Github repo about this course is [here.](https://github.com/Suthammd/PracticalMLcourseProject)
+
+**Step 1** Setting project environment.Load datasets in to Rstudio.
+```{r load datasets, message=FALSE, warning=FALSE, paged.print=FALSE}
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",
+              destfile = "training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",
+              destfile = "testing.csv")
+
+training <- read.csv("training.csv",na.strings =c("", " ","NA"))
+testing <- read.csv("testing.csv",na.strings = c("", " ","NA"))
+set.seed(1234)
+dim(training);dim(testing)
+```   
+There are 160 variables in both datasets. Setting seed equal to 1234 for reproducibility.  
+**Step 2** Explore the dataset and preprocessing.  
+```{r exploration}
+unique(training$classe)
+```  
+Each class weight.
+```{r}
+options(digits = 2)
+prop.table(table(training$classe))
+```
+Make outcomes to factor.
+```{r}
+training$classe<-as.factor(training$classe)
+```
+There are 6 classes of exercise posture in this dataset.  
+Handling NA by remove NA variables from model prediction for simplicity.
+```{r  NA, message=FALSE, warning=FALSE}
+training<-training[,colSums(is.na(training[,1:160]))==0]
+testing<-testing[,colSums(is.na(testing[,1:160]))==0]
+dim(training);dim(testing)
+```  
+Now it's more simpler with 60 variables.  
+```{r}
+names<-colnames(training) 
+head(names, n =15)
+```  
+The first 7 variables may not relate to the outcomes, so remove them will make model simpler.
+```{r remove first 7 variables}
+training<-training[,-(1:7)]
+testing<-testing[,-(1:7)]
+```   
+**Step 3** Building the models and test models accuracy.  
+1.Set 3-fold cross validation and building some difference models.
+```{r message=FALSE, warning=FALSE}
+library(tree)
+library(caret)
+control <- trainControl(method="cv", number=3, verboseIter=F)
+
+modelRF<- train(classe~.,data=training,method="rf",trControl = control,tuneLength = 5)
+predRF<- predict(modelRF,newdata = training)
+
+modellda <- train(classe~.,data=training,method="lda",trControl = control,tuneLength = 5)
+predlda<- predict(modellda,newdata = training)
+
+modelrpart <- train(classe~.,training,method ="rpart",trControl = control,tuneLength = 5)
+predrpart<- predict(modelrpart,newdata = training)
+
+modeltree <- tree(classe~.,training)
+predtree<- predict(modeltree,newdata = training,type = "class")
+
+``` 
+2.Compare model performance.  
+
+*Random forest method*  
+```{r}
+confusionMatrix(training$classe,predRF)$overall
+```      
+*Linear discriminant analysis*  
+```{r}
+confusionMatrix(training$classe,predlda)$overall
+```     
+*Rpart method decision trees*  
+```{r}
+confusionMatrix(training$classe,predrpart)$overall
+```      
+*Tree package decision trees*  
+```{r}
+confusionMatrix(training$classe,predtree)$overall
+```    
+
+*Conclusion* According to 4 models above, "Random forest method" has the highest accuracy.   
+For passing this project quiz I have to predict outcome correctly more than 80%,  
+so I choose random forest model for predict the testing set.  
+I expect this model may not do a perfect prediction on testing dataset due to overfitting issue.  
+
+**Step 4** Predict the testing dataset.  
+```{r}
+predtest<-predict(modelRF,newdata = testing[,-53])
+predtest
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
